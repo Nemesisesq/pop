@@ -3,7 +3,7 @@ package pop
 import (
 	"fmt"
 
-	"github.com/gobuffalo/packr"
+	"github.com/gobuffalo/packd"
 	"github.com/pkg/errors"
 )
 
@@ -12,11 +12,11 @@ import (
 // inside of a compiled binary.
 type MigrationBox struct {
 	Migrator
-	Box packr.Box
+	Box packd.Walkable
 }
 
 // NewMigrationBox from a packr.Box and a Connection.
-func NewMigrationBox(box packr.Box, c *Connection) (MigrationBox, error) {
+func NewMigrationBox(box packd.Walkable, c *Connection) (MigrationBox, error) {
 	fm := MigrationBox{
 		Migrator: NewMigrator(c),
 		Box:      box,
@@ -24,17 +24,17 @@ func NewMigrationBox(box packr.Box, c *Connection) (MigrationBox, error) {
 
 	err := fm.findMigrations()
 	if err != nil {
-		return fm, errors.WithStack(err)
+		return fm, err
 	}
 
 	return fm, nil
 }
 
 func (fm *MigrationBox) findMigrations() error {
-	return fm.Box.Walk(func(p string, f packr.File) error {
+	return fm.Box.Walk(func(p string, f packd.File) error {
 		info, err := f.FileInfo()
 		if err != nil {
-			return errors.WithStack(err)
+			return err
 		}
 		matches := mrx.FindAllStringSubmatch(info.Name(), -1)
 		if len(matches) == 0 {
@@ -45,7 +45,7 @@ func (fm *MigrationBox) findMigrations() error {
 		if m[3] == "" {
 			dbType = "all"
 		} else {
-			dbType = m[3][1:]
+			dbType = normalizeSynonyms(m[3][1:])
 			if !DialectSupported(dbType) {
 				return fmt.Errorf("unsupported dialect %s", dbType)
 			}

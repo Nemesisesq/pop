@@ -3,8 +3,8 @@ package pop
 import (
 	"testing"
 
-	"github.com/gobuffalo/pop/nulls"
-	"github.com/gobuffalo/uuid"
+	"github.com/gobuffalo/nulls"
+	"github.com/gofrs/uuid"
 	"github.com/stretchr/testify/require"
 )
 
@@ -185,6 +185,24 @@ func Test_Find_Eager_Belongs_To_Nulls(t *testing.T) {
 
 		b := Book{}
 		err = tx.Eager().Find(&b, book.ID)
+		r.NoError(err)
+	})
+}
+
+func Test_Find_Eager_Belongs_To_Pointers(t *testing.T) {
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+
+		body := Body{}
+		err := tx.Create(&body)
+		r.NoError(err)
+
+		head := Head{BodyID: body.ID}
+		err = tx.Create(&head)
+		r.NoError(err)
+
+		b := Body{}
+		err = tx.Eager().Find(&b, body.ID)
 		r.NoError(err)
 	})
 }
@@ -619,13 +637,13 @@ func Test_Count_Disregards_Pagination(t *testing.T) {
 		secondUsers := Users{}
 
 		q := tx.Paginate(1, 3)
-		q.All(&firstUsers)
+		r.NoError(q.All(&firstUsers))
 		r.Equal(len(names), q.Paginator.TotalEntriesSize) //ensure paginator populates count
 		r.Equal(3, len(firstUsers))
 
 		firstUsers = Users{}
 		q = tx.RawQuery("select * from users").Paginate(1, 3)
-		q.All(&firstUsers)
+		r.NoError(q.All(&firstUsers))
 		r.Equal(1, q.Paginator.Page)
 		r.Equal(3, q.Paginator.PerPage)
 		r.Equal(len(names), q.Paginator.TotalEntriesSize) //ensure paginator populates count
@@ -634,7 +652,7 @@ func Test_Count_Disregards_Pagination(t *testing.T) {
 		totalFirstPage := q.Paginator.TotalPages
 
 		q = tx.Paginate(2, 3)
-		q.All(&secondUsers)
+		r.NoError(q.All(&secondUsers))
 
 		r.Equal(3, len(secondUsers))
 		totalSecondPage := q.Paginator.TotalPages
@@ -743,5 +761,22 @@ func Test_Exists(t *testing.T) {
 
 		t, _ = tx.Where("id = ?", user.ID).Exists("users")
 		r.True(t)
+	})
+}
+
+func Test_FindManyToMany(t *testing.T) {
+	transaction(func(tx *Connection) {
+		r := require.New(t)
+		parent := &Parent{}
+		r.NoError(tx.Create(parent))
+
+		student := &Student{}
+		r.NoError(tx.Create(student))
+
+		r.NoError(tx.RawQuery("INSERT INTO parents_students (student_id, parent_id) VALUES(?,?)", student.ID, parent.ID).Exec())
+
+		p := &Parent{}
+		err := tx.Eager("Students").Find(p, parent.ID)
+		r.NoError(err)
 	})
 }

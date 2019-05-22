@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // Int is a slice of int.
@@ -25,7 +25,7 @@ func (i *Int) Scan(src interface{}) error {
 		return errors.New("Scan source was not []byte")
 	}
 	str := string(b)
-	(*i) = strToInt(str)
+	*i = strToInt(str)
 	return nil
 }
 
@@ -42,15 +42,15 @@ func (i Int) Value() (driver.Value, error) {
 // UnmarshalText will unmarshall text value into
 // the int slice representation of this value.
 func (i *Int) UnmarshalText(text []byte) error {
-	ss := []int{}
+	var ss []int
 	for _, x := range strings.Split(string(text), ",") {
 		f, err := strconv.Atoi(x)
 		if err != nil {
-			return errors.WithStack(err)
+			return err
 		}
 		ss = append(ss, f)
 	}
-	(*i) = ss
+	*i = ss
 	return nil
 }
 
